@@ -1,71 +1,38 @@
 pipeline {
-    agent {
-        kubernetes {
-            yaml """
-apiVersion: v1
-kind: Pod
-metadata:
-  labels:
-    app: jenkins-kaniko
-spec:
-  containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    tty: true
-    command:
-    - cat
-    resources:
-      requests:
-        cpu: "50m"
-        memory: "128Mi"
-      limits:
-        cpu: "200m"
-        memory: "256Mi"
-    volumeMounts:
-    - name: docker-config
-      mountPath: /kaniko/.docker/
-  volumes:
-  - name: docker-config
-    secret:
-      secretName: dockerhub-secret
-"""
-        }
+    agent any
+
+    tools {
+        maven 'maven3.9.11'
     }
 
     environment {
+        REMOTE_HOST = "10.211.55.4"
+        REMOTE_USER = "xz"
         REGISTRY = "lessIsMore365/myapp"
         IMAGE_TAG = "latest"
         DEPLOY_NS = "cicd"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Build Jar') {
             steps {
-                git branch: 'main', url: 'https://github.com/lessIsMore365/myapp.git'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Build Docker Image with Kaniko') {
-            steps {
-                container('kaniko') {
-                    sh '''
-                        /kaniko/executor \
-                          --context `pwd` \
-                          --dockerfile `pwd`/Dockerfile \
-                          --destination=$REGISTRY:$IMAGE_TAG \
-                          --skip-tls-verify
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy to Kubernetes') {
+        stage('Deploy Remotely') {
             steps {
                 sshagent(['k8s-ssh']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no xz@10.211.55.4 "
-                            kubectl set image deployment/myapp myapp=$REGISTRY:$IMAGE_TAG -n $DEPLOY_NS
-                            kubectl rollout status deployment/myapp -n $DEPLOY_NS
+                        # 上传 jar 包和 Dockerfile
+                        scp -o StrictHostKeyChecking=no target/*.jar Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:/home/xz/
+
+                        # 在远程主机上构建镜像、推送、更新 K8s
+                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "
+                            docker build -t ${REGISTRY}:${IMAGE_TAG} /home/xz
+                            docker push ${REGISTRY}:${IMAGE_TAG}
+                            kubectl -n ${DEPLOY_NS} set image deployment/myapp myapp=${REGISTRY}:${IMAGE_TAG} --record
+                            kubectl -n ${DEPLOY_NS} rollout status deployment/myapp
                         "
                     '''
                 }
