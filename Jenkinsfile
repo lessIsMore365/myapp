@@ -16,11 +16,11 @@ spec:
     - cat
     resources:
       requests:
-        cpu: "100m"
-        memory: "256Mi"
+        cpu: "50m"
+        memory: "128Mi"
       limits:
-        cpu: "500m"
-        memory: "512Mi"
+        cpu: "200m"
+        memory: "256Mi"
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker/
