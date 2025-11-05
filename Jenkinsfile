@@ -6,10 +6,10 @@ pipeline {
     }
 
     environment {
-        REGISTRY = "lessIsMore365/myapp"      // Docker Hub 仓库名
+        REGISTRY = "lessIsMore365/myapp"
         IMAGE_TAG = "latest"
         DEPLOY_NS = "cicd"
-        KUBECONFIG = "/home/xz/.kube/config"  // Jenkins 连接虚机后指向的 kubeconfig
+        KUBECONFIG = "/home/xz/.kube/config"
     }
 
     stages {
@@ -27,35 +27,46 @@ pipeline {
 
         stage('Build & Push Image with Kaniko') {
             agent {
-                docker {
-                    image 'gcr.io/kaniko-project/executor:latest'
-                    args '-u root --entrypoint=""'
+                kubernetes {
+                    yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    command:
+    - cat
+    tty: true
+"""
                 }
             }
             environment {
                 DOCKER_CONFIG = '/kaniko/.docker/'
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        mkdir -p /kaniko/.docker
-                        cat <<EOF > /kaniko/.docker/config.json
-                        {
-                          "auths": {
-                            "https://index.docker.io/v1/": {
-                              "username": "$DOCKER_USER",
-                              "password": "$DOCKER_PASS"
+                container('kaniko') {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh '''
+                            mkdir -p /kaniko/.docker
+                            cat <<EOF > /kaniko/.docker/config.json
+                            {
+                              "auths": {
+                                "https://index.docker.io/v1/": {
+                                  "username": "$DOCKER_USER",
+                                  "password": "$DOCKER_PASS"
+                                }
+                              }
                             }
-                          }
-                        }
-                        EOF
+                            EOF
 
-                        /kaniko/executor \
-                          --context `pwd` \
-                          --dockerfile `pwd`/Dockerfile \
-                          --destination=$REGISTRY:$IMAGE_TAG \
-                          --verbosity info
-                    '''
+                            /kaniko/executor \
+                              --context `pwd` \
+                              --dockerfile `pwd`/Dockerfile \
+                              --destination=$REGISTRY:$IMAGE_TAG \
+                              --verbosity info
+                        '''
+                    }
                 }
             }
         }
