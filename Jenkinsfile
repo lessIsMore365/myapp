@@ -1,35 +1,50 @@
 pipeline {
     agent any
 
+    environment {
+        REGISTRY = "yourname/myapp"      // Docker Hub 仓库名
+        IMAGE_TAG = "latest"
+        DEPLOY_NS = "cicd"
+        KUBECONFIG = "/home/xz/.kube/config"   // Jenkins 连接虚机后，指向 K8s 配置文件
+    }
+
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git 'https://github.com/yourname/yourproject.git'
+                git branch: 'main', url: 'https://github.com/yourname/myapp.git'
             }
         }
 
-        stage('Build on remote VM') {
+        stage('Build with Maven') {
             steps {
-                sshagent(['your-ssh-credential-id']) {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $REGISTRY:$IMAGE_TAG .'
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no xz@192.168.56.10 "
-                            cd ~/yourproject &&
-                            docker build -t yourapp:latest . &&
-                            docker tag yourapp:latest your-registry/yourapp:latest &&
-                            docker push your-registry/yourapp:latest
-                        "
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push $REGISTRY:$IMAGE_TAG
                     '''
                 }
             }
         }
 
-        stage('Deploy to K8s') {
+        stage('Deploy to Kubernetes') {
             steps {
-                sshagent(['your-ssh-credential-id']) {
+                sshagent(['k8s-ssh']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no xz@10.211.55.4"
-                            kubectl set image deployment/your-deployment app=your-registry/yourapp:latest -n your-namespace &&
-                            kubectl rollout status deployment/your-deployment -n your-namespace
+                        ssh -o StrictHostKeyChecking=no xz@your-k8s-ip "
+                            kubectl set image deployment/myapp myapp=$REGISTRY:$IMAGE_TAG -n $DEPLOY_NS
+                            kubectl rollout status deployment/myapp -n $DEPLOY_NS
                         "
                     '''
                 }
