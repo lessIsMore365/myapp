@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+            maven 'Maven3.9.11'
+        }
+
     environment {
         REGISTRY = "lessIsMore365/myapp"      // Docker Hub 仓库名
         IMAGE_TAG = "latest"
