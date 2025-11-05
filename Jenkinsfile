@@ -42,7 +42,7 @@ pipeline {
             steps {
                 sshagent(['k8s-ssh']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no xz@your-k8s-ip "
+                        ssh -o StrictHostKeyChecking=no xz@10.211.55.4"
                             kubectl set image deployment/myapp myapp=$REGISTRY:$IMAGE_TAG -n $DEPLOY_NS
                             kubectl rollout status deployment/myapp -n $DEPLOY_NS
                         "
