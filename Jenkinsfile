@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "yourname/myapp"      // Docker Hub 仓库名
+        REGISTRY = "lessIsMore365/myapp"      // Docker Hub 仓库名
         IMAGE_TAG = "latest"
         DEPLOY_NS = "cicd"
         KUBECONFIG = "/home/xz/.kube/config"   // Jenkins 连接虚机后，指向 K8s 配置文件
@@ -11,7 +11,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/yourname/myapp.git'
+                git branch: 'main', url: 'https://github.com/lessIsMore365/myapp.git'
             }
         }
 
