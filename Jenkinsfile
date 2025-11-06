@@ -31,7 +31,7 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "
                             echo '==== 登录 Harbor ===='
                             echo 'Harbor 登录中...'
-                            docker login 192.168.3.41:8080 -u admin -p 你的Harbor密码
+                            docker login 192.168.3.41:8080 -u admin -p Harbor12345
 
                             echo '==== 构建并推送镜像 ===='
                             docker build -t ${REGISTRY}:${IMAGE_TAG} /home/xz
