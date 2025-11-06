@@ -16,7 +16,11 @@ pipeline {
     stages {
         stage('Build Jar') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh '''
+            mvn clean package -DskipTests
+            echo "=== 检查 target 目录 ==="
+            ls -l target
+        '''
             }
         }
 
