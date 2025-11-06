@@ -22,7 +22,7 @@ pipeline {
 
         stage('Deploy Remotely') {
             steps {
-                sshagent(['k8s-ssh']) {
+                sshagent(['vm-ssh-key']) {
                     sh '''
                         # 上传 jar 包和 Dockerfile
                         scp -o StrictHostKeyChecking=no target/*.jar Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:/home/xz/
