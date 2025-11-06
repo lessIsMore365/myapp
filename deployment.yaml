@@ -18,7 +18,7 @@ spec:
           image: 192.168.3.41:8080/myapp/myapp:latest   # Harbor 镜像地址
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+            - containerPort: 9066                      # 修改为 9066
       imagePullSecrets:
         - name: harbor-secret
 ---
@@ -32,6 +32,6 @@ spec:
   selector:
     app: myapp
   ports:
-    - port: 8080
-      targetPort: 8080
-      nodePort: 30080
+    - port: 9066           # Service 内部端口
+      targetPort: 9066     # Pod 容器端口
+      nodePort: 39066      # NodePort 外部访问端口（可改为任意 30000~32767）
