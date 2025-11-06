@@ -26,28 +26,38 @@ pipeline {
 
         stage('Deploy Remotely') {
             steps {
-                sshagent(['vm-ssh-key']) {   // 这是 Jenkins 里的 SSH 凭据 ID
+                sshagent(['vm-ssh-key']) {
                     sh '''
-                        # 上传 jar 包和 Dockerfile
-                        scp -o StrictHostKeyChecking=no target/*.jar Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:/home/xz/
+                # 上传 jar 包、Dockerfile 和 deployment.yaml
+                scp -o StrictHostKeyChecking=no target/*.jar Dockerfile deployment.yaml ${REMOTE_USER}@${REMOTE_HOST}:/home/xz/
 
-                        # 远程执行构建、推送、更新部署
-                        ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "
-                            echo '==== 登录 Harbor ===='
-                            echo 'Harbor 登录中...'
-                            docker login 192.168.3.41:8080 -u admin -p Harbor12345
+                # 在远程主机上执行镜像构建、推送和部署
+                ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "
+                    set -e  # 遇到错误立即退出
 
-                            echo '==== 构建并推送镜像 ===='
-                            docker build -t ${REGISTRY}:${IMAGE_TAG} /home/xz
-                            docker push ${REGISTRY}:${IMAGE_TAG}
+                    echo '==== 登录 Harbor ===='
+                    docker login 192.168.3.41:8080 -u admin -p Harbor12345
 
-                            echo '==== 更新 K8s 部署 ===='
-                            kubectl -n ${DEPLOY_NS} set image deployment/myapp myapp=${REGISTRY}:${IMAGE_TAG} --record
-                            kubectl -n ${DEPLOY_NS} rollout status deployment/myapp
-                        "
-                    '''
+                    echo '==== 构建并推送镜像 ===='
+                    docker build -t ${REGISTRY}:${IMAGE_TAG} /home/xz
+                    docker push ${REGISTRY}:${IMAGE_TAG}
+
+                    echo '==== 更新或创建 K8s 部署 ===='
+                    # 检查 Deployment 是否存在
+                    if kubectl -n ${DEPLOY_NS} get deploy myapp > /dev/null 2>&1; then
+                        echo 'Deployment 已存在，更新镜像...'
+                        kubectl -n ${DEPLOY_NS} set image deployment/myapp myapp=${REGISTRY}:${IMAGE_TAG}
+                    else
+                        echo 'Deployment 不存在，创建部署...'
+                        kubectl apply -f /home/xz/deployment.yaml -n ${DEPLOY_NS}
+                    fi
+
+                    kubectl -n ${DEPLOY_NS} rollout status deployment/myapp
+                "
+            '''
                 }
             }
         }
+
     }
 }
