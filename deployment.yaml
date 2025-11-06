@@ -34,4 +34,4 @@ spec:
   ports:
     - port: 9066           # Service 内部端口
       targetPort: 9066     # Pod 容器端口
-      nodePort: 39066      # NodePort 外部访问端口（可改为任意 30000~32767）
+      nodePort: 30966      # NodePort 外部访问端口（可改为任意 30000~32767）
